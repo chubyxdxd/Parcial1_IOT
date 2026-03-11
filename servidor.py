@@ -27,41 +27,38 @@ def calcular_valor_real(nombre_tabla, x):
 def generar_resumen_usuarios():
     try:
         conn = conectar_db()
+        # --- NUEVA CONSULTA RELACIONAL (JOIN + UNION) ---
         query = """
-            SELECT idu, COUNT(*) as total_registros
+            SELECT u.nombre_usuario, COUNT(c.idu) as total_registros
             FROM (
                 SELECT idu FROM seno
                 UNION ALL
                 SELECT idu FROM coseno
                 UNION ALL
                 SELECT idu FROM arctan
-            ) AS datos_combinados
-            GROUP BY idu
+            ) AS c
+            JOIN usuarios u ON c.idu = u.id
+            GROUP BY u.id, u.nombre_usuario
         """
         df_usuarios = pd.read_sql(query, conn)
         conn.close()
 
         if not df_usuarios.empty:
-            # Convertimos el ID a texto para que Plotly lo trate como categoría, no como número
-            df_usuarios['idu'] = "Usuario " + df_usuarios['idu'].astype(str)
-
-            st.subheader("Participación Global por ID de Usuario")
+            st.subheader("Participación Global por Operador")
             
             fig = px.pie(
                 df_usuarios, 
                 values='total_registros', 
-                names='idu', 
+                names='nombre_usuario', 
                 hole=0.4,
                 color_discrete_sequence=px.colors.sequential.Plasma
             )
-            # Asegurar que el gráfico ocupe bien el espacio
             st.plotly_chart(fig, use_container_width=True)
             
-            # Tabla resumen debajo del gráfico
             with st.expander("Ver tabla de aportes por usuario"):
                 st.dataframe(df_usuarios.sort_values('total_registros', ascending=False), use_container_width=True)
         else:
-            st.info("No hay datos de usuarios registrados en el sistema todavía.")
+            st.info("No hay datos de cálculos registrados en el sistema todavía.")
             
     except Exception as e:
         st.error(f"Error al cargar el resumen de usuarios: {e}")
